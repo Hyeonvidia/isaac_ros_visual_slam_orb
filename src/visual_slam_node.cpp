@@ -9,6 +9,8 @@
 
 #include <cv_bridge/cv_bridge.h>
 #include <Eigen/Geometry>
+#include <opencv2/imgproc.hpp>
+#include <std_msgs/msg/header.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include "isaac_ros_visual_slam_orb/orb_slam3_backend.hpp"
@@ -154,6 +156,8 @@ VisualSlamNode::VisualSlamNode(const rclcpp::NodeOptions & options)
     "visual_slam/vis/landmarks_cloud", 5);
   pose_graph_pub_   = create_publisher<geometry_msgs::msg::PoseArray>(
     "visual_slam/vis/pose_graph_nodes", 5);
+  feature_image_pub_ = create_publisher<sensor_msgs::msg::Image>(
+    "visual_slam/vis/features", 5);
 
   // ── Subscribers ───────────────────────────────────────────────────────
   for (uint32_t i = 0; i < effective_num_cameras_; ++i) {
@@ -450,6 +454,11 @@ void VisualSlamNode::OnSyncedImages(
     }
   }
 
+  // ── Save current frame for feature overlay ───────────────────────────
+  if (!cv_images.empty()) {
+    current_frame_ = cv_images[0].clone();
+  }
+
   // ── Track ─────────────────────────────────────────────────────────────
   TrackingResult result;
   if (rgbd_mode_) {
@@ -627,6 +636,45 @@ void VisualSlamNode::PublishVisualization(
   if (enable_landmarks_view_ && !result.map_points.empty()) {
     landmarks_pub_->publish(
       EigenVectorsToPointCloud2(result.map_points, map_frame_, stamp));
+  }
+
+  // ── Feature overlay image ──────────────────────────────────────────────
+  if (feature_image_pub_->get_subscription_count() > 0 &&
+      !current_frame_.empty() && !result.keypoints.empty())
+  {
+    // Convert grayscale to BGR for colored keypoint drawing
+    cv::Mat vis;
+    cv::cvtColor(current_frame_, vis, cv::COLOR_GRAY2BGR);
+
+    for (size_t i = 0; i < result.keypoints.size(); ++i) {
+      const auto & kp = result.keypoints[i];
+      const bool matched = (i < result.keypoint_matched.size()) &&
+                           result.keypoint_matched[i];
+      // Green = matched to 3D map point, Red = unmatched
+      const cv::Scalar color = matched
+        ? cv::Scalar(0, 255, 0)    // BGR green
+        : cv::Scalar(0, 0, 255);   // BGR red
+      const int radius = matched ? 4 : 2;
+      cv::circle(vis, kp.pt, radius, color, -1);  // filled circle
+    }
+
+    // Add status text
+    const int n_matched = std::count(
+      result.keypoint_matched.begin(), result.keypoint_matched.end(), true);
+    const std::string text =
+      "KP: " + std::to_string(result.keypoints.size()) +
+      " | Matched: " + std::to_string(n_matched);
+    cv::putText(vis, text, cv::Point(10, 25),
+      cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 2);
+
+    // Publish as sensor_msgs::Image
+    auto msg = cv_bridge::CvImage(
+      std_msgs::msg::Header(), "bgr8", vis).toImageMsg();
+    msg->header.stamp = stamp;
+    msg->header.frame_id = camera_optical_frames_.empty()
+      ? "camera_optical_frame"
+      : camera_optical_frames_[0];
+    feature_image_pub_->publish(*msg);
   }
 }
 

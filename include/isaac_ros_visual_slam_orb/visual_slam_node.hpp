@@ -24,6 +24,7 @@
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
+#include <opencv2/core.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
@@ -145,6 +146,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr               observations_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr               landmarks_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr               pose_graph_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr                    feature_image_pub_;
 
   // ── Services ────────────────────────────────────────────────────────────
   rclcpp::Service<isaac_ros_visual_slam_interfaces::srv::Reset>::SharedPtr        reset_srv_;
@@ -184,6 +186,9 @@ private:
 
   // Previous published odom pose for velocity calculation
   std::optional<std::pair<int64_t, Eigen::Isometry3d>> prev_pose_;
+
+  // Current frame image for feature overlay visualisation
+  cv::Mat current_frame_;
 
   // Static transform: base_frame → camera_optical_frame (from TF tree).
   // Used to convert ORB-SLAM3 poses (optical convention) to ROS convention.

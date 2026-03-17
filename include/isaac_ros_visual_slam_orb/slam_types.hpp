@@ -10,6 +10,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <opencv2/core.hpp>
 
 namespace isaac_ros::visual_slam_orb
 {
@@ -87,6 +88,12 @@ struct TrackingResult
 
   // 2D->3D observations in camera frame (for observation visualisation)
   std::vector<Eigen::Vector3f> observations;
+
+  // 2D keypoints detected in the current frame (for feature overlay image)
+  std::vector<cv::KeyPoint> keypoints;
+
+  // Whether each keypoint has a valid 3D map point match
+  std::vector<bool> keypoint_matched;
 
   // Timing
   double track_time_s{0.0};

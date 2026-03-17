@@ -559,6 +559,13 @@ void OrbSlam3Backend::FillVisualizationData(TrackingResult & result) const
   for (const auto & kp : kps) {
     result.observations.emplace_back(kp.pt.x, kp.pt.y, 1.0f);
   }
+
+  // 2D keypoints + match status for feature overlay image
+  result.keypoints = kps;
+  result.keypoint_matched.resize(kps.size(), false);
+  for (size_t i = 0; i < kps.size() && i < tracked.size(); ++i) {
+    result.keypoint_matched[i] = (tracked[i] != nullptr && !tracked[i]->isBad());
+  }
 }
 
 }  // namespace isaac_ros::visual_slam_orb
