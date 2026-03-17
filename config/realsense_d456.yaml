@@ -1,0 +1,92 @@
+# ORB-SLAM3 algorithm parameters for Intel RealSense D456
+# on Jetson AGX Orin (CUDA 12.6)
+#
+# NOTE: Camera intrinsics (fx, fy, cx, cy, distortion) are injected
+# at runtime from the CameraInfo messages.  Only algorithm parameters
+# need to live here.
+
+%YAML:1.0
+
+#--------------------------------------------------------------------------------------------
+# Camera
+#--------------------------------------------------------------------------------------------
+# These values are overridden at runtime from CameraInfo topics.
+# Keeping defaults here so ORB-SLAM3 can parse the file without errors.
+Camera1.type: "PinHole"
+Camera1.fx: 382.0
+Camera1.fy: 382.0
+Camera1.cx: 320.0
+Camera1.cy: 240.0
+Camera1.width: 640
+Camera1.height: 480
+Camera1.k1: 0.0
+Camera1.k2: 0.0
+Camera1.p1: 0.0
+Camera1.p2: 0.0
+Camera1.k3: 0.0
+
+Camera2.type: "PinHole"
+Camera2.fx: 382.0
+Camera2.fy: 382.0
+Camera2.cx: 320.0
+Camera2.cy: 240.0
+Camera2.width: 640
+Camera2.height: 480
+Camera2.k1: 0.0
+Camera2.k2: 0.0
+Camera2.p1: 0.0
+Camera2.p2: 0.0
+Camera2.k3: 0.0
+
+# D456 baseline ≈ 95 mm
+Stereo.b: 0.095
+Stereo.ThDepth: 40.0
+StereoRectified: 0
+
+Camera.fps: 30
+Camera.RGB: 0
+
+#--------------------------------------------------------------------------------------------
+# IMU — D456 built-in IMU (BMI055)
+# Values from Intel RealSense D456 datasheet
+#--------------------------------------------------------------------------------------------
+IMU.NoiseGyro:  0.000244   # rad / (s * sqrt(Hz))
+IMU.NoiseAcc:   0.001862   # m / (s^2 * sqrt(Hz))
+IMU.GyroWalk:   0.000019393
+IMU.AccWalk:    0.003
+IMU.Frequency:  200.0
+
+# T_imu_cam: transform from Camera1 optical frame to IMU frame
+# (populated at runtime from TF tree; placeholder identity here)
+IMU.T_b_c1: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: f
+   data: [1,0,0,0,
+          0,1,0,0,
+          0,0,1,0,
+          0,0,0,1]
+
+#--------------------------------------------------------------------------------------------
+# ORB Feature Extractor
+#--------------------------------------------------------------------------------------------
+ORBextractor.nFeatures:   1000
+ORBextractor.scaleFactor: 1.2
+ORBextractor.nLevels:     8
+ORBextractor.iniThFAST:   20
+ORBextractor.minThFAST:   7
+
+#--------------------------------------------------------------------------------------------
+# Viewer (disabled for headless Docker)
+#--------------------------------------------------------------------------------------------
+Viewer.KeyFrameSize:       0.05
+Viewer.KeyFrameLineWidth:  1
+Viewer.GraphLineWidth:     0.9
+Viewer.PointSize:          2
+Viewer.CameraSize:         0.08
+Viewer.CameraLineWidth:    3
+Viewer.ViewpointX:         0
+Viewer.ViewpointY:        -0.7
+Viewer.ViewpointZ:        -1.8
+Viewer.ViewpointF:         500
+Viewer.imageViewScale:     1
