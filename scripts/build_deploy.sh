@@ -106,13 +106,19 @@ else
 fi
 
 # ─── Prepare custom entrypoint ──────────────────────────────────────────────
-# Stage the entrypoint so docker_deploy.sh can include it via -d
+# docker_deploy.sh -d expects directories, not files.
+# Create a temp staging directory with the entrypoint at the correct path.
 ENTRYPOINT_SRC="${SCRIPT_DIR}/deploy_entrypoint.sh"
 if [[ ! -f "${ENTRYPOINT_SRC}" ]]; then
     print_error "deploy_entrypoint.sh not found at ${ENTRYPOINT_SRC}"
     exit 1
 fi
-chmod +x "${ENTRYPOINT_SRC}"
+
+ENTRYPOINT_STAGING=$(mktemp -d -t orb_entrypoint_XXXXXXXX)
+trap "rm -rf ${ENTRYPOINT_STAGING}" EXIT
+mkdir -p "${ENTRYPOINT_STAGING}/usr/local/bin/scripts"
+cp "${ENTRYPOINT_SRC}" "${ENTRYPOINT_STAGING}/usr/local/bin/scripts/deploy-entrypoint.sh"
+chmod +x "${ENTRYPOINT_STAGING}/usr/local/bin/scripts/deploy-entrypoint.sh"
 
 # ─── Build deploy image ─────────────────────────────────────────────────────
 print_info "Calling docker_deploy.sh..."
@@ -129,7 +135,7 @@ print_info "  Entrypoint     : ${ENTRYPOINT_SRC}"
     -n "${DEPLOY_IMAGE_NAME}" \
     -w "${ISAAC_ROS_WS}" \
     -t "${TARBALL_PATH}" \
-    -d "${ENTRYPOINT_SRC}:/usr/local/bin/scripts/deploy-entrypoint.sh" \
+    -d "${ENTRYPOINT_STAGING}:/" \
     -i "${INSTALL_DEBIANS}" \
     -p "${LAUNCH_PACKAGE}" \
     -f "${LAUNCH_FILE}"
