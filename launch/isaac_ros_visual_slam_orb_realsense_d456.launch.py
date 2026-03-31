@@ -27,6 +27,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 import launch
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
@@ -194,7 +195,30 @@ def _launch_setup(context, *args, **kwargs):
         output='screen',
     )
 
-    return [realsense_node, vslam_container]
+    # ── RViz2 (optional) ───────────────────────────────────────────────
+    run_rviz = LaunchConfiguration('run_rviz').perform(context)
+
+    nodes = [realsense_node, vslam_container]
+
+    if run_rviz.lower() == 'true':
+        if use_rgbd:
+            rviz_cfg = 'rgbd.rviz'
+        elif use_stereo:
+            rviz_cfg = 'stereo.rviz'
+        else:
+            rviz_cfg = 'mono.rviz'
+
+        rviz_config_path = os.path.join(pkg_share, 'rviz', rviz_cfg)
+        rviz_node = Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2',
+            arguments=['-d', rviz_config_path],
+            output='screen',
+        )
+        nodes.append(rviz_node)
+
+    return nodes
 
 
 def generate_launch_description():
@@ -204,6 +228,10 @@ def generate_launch_description():
             default_value='stereo',
             choices=['mono', 'mono-imu', 'stereo', 'stereo-imu', 'rgbd', 'rgbd-imu'],
             description='Sensor mode: mono, mono-imu, stereo, stereo-imu, rgbd, rgbd-imu'),
+
+        # ── RViz2 ─────────────────────────────────────────────────────────
+        DeclareLaunchArgument('run_rviz', default_value='true',
+            description='Launch RViz2 with sensor-mode-appropriate config'),
 
         # ── Common arguments ──────────────────────────────────────────────
         DeclareLaunchArgument('rectified_images',       default_value='true'),

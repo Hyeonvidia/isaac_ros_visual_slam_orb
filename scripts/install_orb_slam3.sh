@@ -348,12 +348,15 @@ sed -i 's/bool mnFullBAIdx;/int mnFullBAIdx;/' include/LoopClosing.h
 
 # Fix: Rectified stereo leaves calibration2_ null → SIGSEGV when printing settings.
 # Patch readCamera2 to create calibration2_ as copy of calibration1_ for Rectified type.
-if ! grep -q "calibration2_ = new Pinhole" src/Settings.cc 2>/dev/null; then
+# Guard uses a unique string from the patch to avoid false-positive from PinHole block.
+if ! grep -q "calibration2_ = new Pinhole(vCal1)" src/Settings.cc 2>/dev/null; then
   sed -i '/if(cameraType_ == Rectified){/{
     N
     s|if(cameraType_ == Rectified){\n            b_ = |if(cameraType_ == Rectified){\n            if(!calibration2_ \&\& calibration1_){\n                vector<float> vCal1 = {calibration1_->getParameter(0),calibration1_->getParameter(1),calibration1_->getParameter(2),calibration1_->getParameter(3)};\n                calibration2_ = new Pinhole(vCal1);\n                originalCalib2_ = new Pinhole(vCal1);\n            }\n            b_ = |
   }' src/Settings.cc
   info "Patched Settings.cc: Rectified stereo calibration2_ fix."
+else
+  info "Settings.cc Rectified fix already applied."
 fi
 
 # ── Enable Viewer in CMakeLists ──────────────────────────────────────────────

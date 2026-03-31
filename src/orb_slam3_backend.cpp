@@ -177,6 +177,17 @@ bool OrbSlam3Backend::WriteSettingsYaml(
   f << "Camera1.cy: " << real(cam0.cy) << "\n";
   f << "\n";
 
+  // Camera2: required for stereo/stereo-IMU modes.
+  // For Rectified stereo the intrinsics are identical to Camera1.
+  if (cameras.size() >= 2) {
+    const auto & cam1 = cameras[1];
+    f << "Camera2.fx: " << real(cam1.fx) << "\n";
+    f << "Camera2.fy: " << real(cam1.fy) << "\n";
+    f << "Camera2.cx: " << real(cam1.cx) << "\n";
+    f << "Camera2.cy: " << real(cam1.cy) << "\n";
+    f << "\n";
+  }
+
   // ── Image dimensions — integers ───────────────────────────────────────
   f << "Camera.width: "  << cam0.width  << "\n";
   f << "Camera.height: " << cam0.height << "\n";
