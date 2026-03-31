@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
+#include <unistd.h>
 
 // ORB-SLAM3 public headers
 #include <System.h>
@@ -135,8 +136,10 @@ bool OrbSlam3Backend::WriteSettingsYaml(
   const std::vector<CameraCalib> & cameras,
   const std::optional<ImuCalib> & imu)
 {
-  // Use /tmp so it is writable inside the container
-  generated_settings_path_ = "/tmp/orb_slam3_runtime_settings.yaml";
+  // Use /tmp with PID suffix to avoid stale YAML from previous runs
+  // (the host /tmp/ is bind-mounted and persists across containers)
+  generated_settings_path_ =
+    "/tmp/orb_slam3_settings_" + std::to_string(getpid()) + ".yaml";
 
   std::ofstream f(generated_settings_path_);
   if (!f.is_open()) {
