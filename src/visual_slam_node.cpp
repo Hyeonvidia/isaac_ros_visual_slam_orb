@@ -9,6 +9,7 @@
 
 #include <cv_bridge/cv_bridge.h>
 #include <Eigen/Geometry>
+#include <opencv2/imgproc.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include "isaac_ros_visual_slam_orb/orb_slam3_backend.hpp"
@@ -39,6 +40,7 @@ VisualSlamNode::VisualSlamNode(const rclcpp::NodeOptions & options)
   enable_slam_visualization_(declare_parameter<bool>("enable_slam_visualization", true)),
   enable_observations_view_(declare_parameter<bool>("enable_observations_view", true)),
   enable_landmarks_view_(declare_parameter<bool>("enable_landmarks_view", true)),
+  enable_feature_image_view_(declare_parameter<bool>("enable_feature_image_view", true)),
   override_publishing_stamp_(declare_parameter<bool>("override_publishing_stamp", false)),
   path_max_size_(declare_parameter<int>("path_max_size", 1024)),
   image_buffer_size_(declare_parameter<int>("image_buffer_size", 10)),
@@ -154,6 +156,8 @@ VisualSlamNode::VisualSlamNode(const rclcpp::NodeOptions & options)
     "visual_slam/vis/landmarks_cloud", 5);
   pose_graph_pub_   = create_publisher<geometry_msgs::msg::PoseArray>(
     "visual_slam/vis/pose_graph_nodes", 5);
+  feature_image_pub_ = create_publisher<sensor_msgs::msg::Image>(
+    "visual_slam/vis/feature_image", 5);
 
   // ── Subscribers ───────────────────────────────────────────────────────
   for (uint32_t i = 0; i < effective_num_cameras_; ++i) {
@@ -450,6 +454,11 @@ void VisualSlamNode::OnSyncedImages(
     }
   }
 
+  // Store input image for feature visualisation
+  if (enable_feature_image_view_ && !cv_images.empty()) {
+    last_input_image_ = cv_images[0].clone();
+  }
+
   // ── Track ─────────────────────────────────────────────────────────────
   TrackingResult result;
   if (rgbd_mode_) {
@@ -482,6 +491,11 @@ void VisualSlamNode::PublishAll(
   const TrackingResult & result)
 {
   PublishStatus(stamp, result);
+
+  // Feature image is always published (even when tracking fails)
+  if (enable_slam_visualization_ && enable_feature_image_view_) {
+    PublishFeatureImage(stamp, result);
+  }
 
   if (result.state == TrackingState::kSuccess ||
       result.state == TrackingState::kMapRelocalization)
@@ -628,6 +642,65 @@ void VisualSlamNode::PublishVisualization(
     landmarks_pub_->publish(
       EigenVectorsToPointCloud2(result.map_points, map_frame_, stamp));
   }
+}
+
+void VisualSlamNode::PublishFeatureImage(
+  const rclcpp::Time & stamp,
+  const TrackingResult & result)
+{
+  if (last_input_image_.empty()) { return; }
+
+  // Convert grayscale to BGR for coloured annotations
+  cv::Mat vis;
+  if (last_input_image_.channels() == 1) {
+    cv::cvtColor(last_input_image_, vis, cv::COLOR_GRAY2BGR);
+  } else {
+    vis = last_input_image_.clone();
+  }
+
+  // Draw observations (2D keypoints) as green circles
+  for (const auto & obs : result.observations) {
+    cv::circle(vis, cv::Point(static_cast<int>(obs.x()), static_cast<int>(obs.y())),
+               3, cv::Scalar(0, 255, 0), -1);
+  }
+
+  // Draw map points (successfully tracked) as red circles
+  // map_points are 3D, but we can use matched observation indices if available.
+  // For now, overlay tracking state text.
+  const char * state_str = "UNKNOWN";
+  cv::Scalar state_color(128, 128, 128);
+  switch (result.state) {
+    case TrackingState::kSuccess:
+      state_str = "TRACKING OK";
+      state_color = cv::Scalar(0, 255, 0);
+      break;
+    case TrackingState::kMapRelocalization:
+      state_str = "RELOCALIZATION";
+      state_color = cv::Scalar(0, 255, 255);
+      break;
+    case TrackingState::kFailed:
+      state_str = "LOST";
+      state_color = cv::Scalar(0, 0, 255);
+      break;
+    default: break;
+  }
+  cv::putText(vis, state_str, cv::Point(10, 30),
+              cv::FONT_HERSHEY_SIMPLEX, 0.8, state_color, 2);
+
+  // Feature count
+  const std::string count_str =
+    "Features: " + std::to_string(result.observations.size()) +
+    "  MapPts: " + std::to_string(result.map_points.size());
+  cv::putText(vis, count_str, cv::Point(10, 60),
+              cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 1);
+
+  // Publish
+  auto msg = cv_bridge::CvImage(
+    std_msgs::msg::Header(), "bgr8", vis).toImageMsg();
+  msg->header.stamp = stamp;
+  msg->header.frame_id = camera_optical_frames_.empty()
+    ? "camera_optical_frame" : camera_optical_frames_[0];
+  feature_image_pub_->publish(*msg);
 }
 
 sensor_msgs::msg::PointCloud2 VisualSlamNode::EigenVectorsToPointCloud2(

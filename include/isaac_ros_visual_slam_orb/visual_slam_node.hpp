@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include <opencv2/core.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 // Re-use all ROS interface types from the existing visual_slam_interfaces
@@ -79,6 +80,7 @@ private:
   const bool     enable_slam_visualization_;
   const bool     enable_observations_view_;
   const bool     enable_landmarks_view_;
+  const bool     enable_feature_image_view_;
   const bool     override_publishing_stamp_;
   const uint32_t path_max_size_;
   const uint32_t image_buffer_size_;
@@ -145,6 +147,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr               observations_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr               landmarks_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr               pose_graph_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr                    feature_image_pub_;
 
   // ── Services ────────────────────────────────────────────────────────────
   rclcpp::Service<isaac_ros_visual_slam_interfaces::srv::Reset>::SharedPtr        reset_srv_;
@@ -185,6 +188,9 @@ private:
   // Previous published odom pose for velocity calculation
   std::optional<std::pair<int64_t, Eigen::Isometry3d>> prev_pose_;
 
+  // Last input image for feature visualisation
+  cv::Mat last_input_image_;
+
   // Static transform: base_frame → camera_optical_frame (from TF tree).
   // Used to convert ORB-SLAM3 poses (optical convention) to ROS convention.
   // T_odom_base = T_base_cam * T_wc * T_base_cam^{-1}
@@ -224,6 +230,10 @@ private:
     const TrackingResult & result);
 
   void PublishVisualization(
+    const rclcpp::Time & stamp,
+    const TrackingResult & result);
+
+  void PublishFeatureImage(
     const rclcpp::Time & stamp,
     const TrackingResult & result);
 

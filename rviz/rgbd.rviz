@@ -83,7 +83,7 @@ Visualization Manager:
     Channel Name: intensity
     Class: rviz_default_plugins/PointCloud2
     Color: 255; 255; 255
-    Color Transformer: RGB8
+    Color Transformer: FlatColor
     Decay Time: 0
     Enabled: true
     Invert Rainbow: false
@@ -117,7 +117,7 @@ Visualization Manager:
     Channel Name: intensity
     Class: rviz_default_plugins/PointCloud2
     Color: 255; 255; 255
-    Color Transformer: RGB8
+    Color Transformer: FlatColor
     Decay Time: 0
     Enabled: true
     Invert Rainbow: false
@@ -273,6 +273,20 @@ Visualization Manager:
       History Policy: Keep Last
       Reliability Policy: Reliable
       Value: /visual_slam/vis/slam_odometry
+    Value: true
+  - Class: rviz_default_plugins/Image
+    Enabled: true
+    Max Value: 1
+    Median window: 5
+    Min Value: 0
+    Name: Feature Image
+    Normalize Range: true
+    Topic:
+      Depth: 5
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /visual_slam/vis/feature_image
     Value: true
   - Class: rviz_default_plugins/Image
     Enabled: true
