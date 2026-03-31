@@ -67,24 +67,26 @@ def _launch_setup(context, *args, **kwargs):
     num_cameras = 2 if use_stereo else 1
 
     # ── RealSense D456 camera node ────────────────────────────────────────
+    # D456 native resolution 848x480 is optimal for automotive use (wider FOV,
+    # higher feature count than 640x480, lower load than 1280x720).
     rs_params = {
         'enable_infra1':  True,
         'enable_infra2':  use_stereo,
         'enable_color':   use_rgbd,
         'enable_depth':   use_rgbd,
-        'depth_module.infra_profile': '640x480x30',
+        'depth_module.infra_profile': '848x480x30',
         'enable_gyro':    use_imu,
         'enable_accel':   use_imu,
         'enable_sync':    True,
         'emitter_enabled': 0,
     }
     if use_imu:
-        rs_params['gyro_fps']          = 200
-        rs_params['accel_fps']         = 100
+        rs_params['gyro_fps']          = 400
+        rs_params['accel_fps']         = 200
         rs_params['unite_imu_method']  = 2   # linear_interpolation
     if use_rgbd:
-        rs_params['rgb_camera.profile'] = '640x480x30'
-        rs_params['depth_module.profile'] = '640x480x30'
+        rs_params['rgb_camera.profile'] = '848x480x30'
+        rs_params['depth_module.profile'] = '848x480x30'
         rs_params['align_depth.enable'] = True
 
     realsense_node = Node(
@@ -106,8 +108,8 @@ def _launch_setup(context, *args, **kwargs):
         'sync_matching_threshold_ms': 5.0,
         'min_num_images':           1,
         'image_buffer_size':        10,
-        'imu_buffer_size':          200,
-        'image_jitter_threshold_ms': 34.0,
+        'imu_buffer_size':          400,
+        'image_jitter_threshold_ms': LaunchConfiguration('image_jitter_threshold_ms'),
         'imu_jitter_threshold_ms':  10.0,
 
         # Image processing
@@ -133,7 +135,7 @@ def _launch_setup(context, *args, **kwargs):
         'enable_observations_view': LaunchConfiguration('enable_observations_view'),
         'enable_landmarks_view':    LaunchConfiguration('enable_landmarks_view'),
         'override_publishing_stamp': LaunchConfiguration('override_publishing_stamp'),
-        'path_max_size':            1024,
+        'path_max_size':            4096,
     }
 
     # ── IMU parameters (only when using IMU) ──────────────────────────────
@@ -249,14 +251,18 @@ def generate_launch_description():
 
         # ── Common arguments ──────────────────────────────────────────────
         DeclareLaunchArgument('rectified_images',       default_value='true'),
-        DeclareLaunchArgument('enable_image_denoising',  default_value='false'),
+        DeclareLaunchArgument('enable_image_denoising',  default_value='true',
+            description='Gaussian blur to reduce vibration noise (recommended for vehicles)'),
+        DeclareLaunchArgument('image_jitter_threshold_ms', default_value='40.0',
+            description='Sync tolerance: 40ms for 30fps high-speed, 100ms for 15fps splitter'),
         DeclareLaunchArgument('enable_slam_visualization', default_value='true'),
         DeclareLaunchArgument('enable_observations_view',  default_value='true'),
         DeclareLaunchArgument('enable_landmarks_view',     default_value='true'),
         DeclareLaunchArgument('override_publishing_stamp', default_value='false'),
 
         # ── ORB extractor ─────────────────────────────────────────────────
-        DeclareLaunchArgument('orb_num_features', default_value='1000'),
+        DeclareLaunchArgument('orb_num_features', default_value='1500',
+            description='1500 for automotive (more features for fast motion robustness)'),
         DeclareLaunchArgument('orb_scale_factor',  default_value='1.2'),
         DeclareLaunchArgument('orb_num_levels',    default_value='8'),
         DeclareLaunchArgument('orb_vocab_path',
@@ -267,7 +273,8 @@ def generate_launch_description():
         DeclareLaunchArgument('gyro_random_walk',     default_value='0.000001'),
         DeclareLaunchArgument('accel_noise_density',  default_value='0.01'),
         DeclareLaunchArgument('accel_random_walk',    default_value='0.0001'),
-        DeclareLaunchArgument('calibration_frequency', default_value='200.0'),
+        DeclareLaunchArgument('calibration_frequency', default_value='400.0',
+            description='Match gyro_fps=400Hz for automotive IMU'),
 
         # ── Build node graph based on mode ────────────────────────────────
         OpaqueFunction(function=_launch_setup),

@@ -204,7 +204,9 @@ bool OrbSlam3Backend::WriteSettingsYaml(
   f << "\n";
 
   // ── Depth threshold (used by both Stereo and RGBD) ──────────────────
-  f << "Stereo.ThDepth: " << real(40.0) << "\n";
+  // ThDepth * baseline = max usable depth in metres.
+  // 50 * 0.095 ≈ 4.75m (good for automotive range with D456).
+  f << "Stereo.ThDepth: " << real(50.0) << "\n";
 
   // ── Stereo baseline ─────────────────────────────────────────────────
   if (cameras.size() >= 2) {
@@ -250,7 +252,7 @@ bool OrbSlam3Backend::WriteSettingsYaml(
     f << "IMU.GyroWalk: "   << real(im.gyro_random_walk)    << "\n";
     f << "IMU.AccWalk: "    << real(im.accel_random_walk)   << "\n";
     f << "IMU.Frequency: "  << real(im.frequency)           << "\n";
-    f << "IMU.InsertKFsWhenLost: 0\n";  // integer
+    f << "IMU.InsertKFsWhenLost: 1\n";  // integer — keep inserting KFs for recovery
     f << "\n";
   }
 
