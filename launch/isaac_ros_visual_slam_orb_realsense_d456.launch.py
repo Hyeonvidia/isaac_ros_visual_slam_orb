@@ -2,26 +2,28 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Unified launch file for ORB-SLAM3 with Intel RealSense D456.
-# Supports all sensor modes via the 'mode' argument:
+# Supports all ORB-SLAM3 sensor modes via the 'mode' argument:
 #
-#   mono            — Monocular (left IR only)
-#   stereo          — Stereo (left + right IR, no IMU)
-#   stereo-imu      — Stereo-Inertial (left + right IR + IMU)
-#   rgbd            — RGB-D (color + depth, no IMU)
-#   rgbd-imu        — RGB-D-Inertial (color + depth + IMU)
+#   mono              — Monocular (left IR only)
+#   mono-inertial     — Monocular-Inertial (left IR + IMU)
+#   stereo            — Stereo (left + right IR)
+#   stereo-inertial   — Stereo-Inertial (left + right IR + IMU)
+#   rgb-d             — RGB-D (color + depth)
+#
+# Aliases accepted: mono-imu, stereo-imu, rgbd, rgbd-imu
 #
 # Usage:
 #   ros2 launch isaac_ros_visual_slam_orb \
 #       isaac_ros_visual_slam_orb_realsense_d456.launch.py mode:=stereo
 #
 #   ros2 launch isaac_ros_visual_slam_orb \
-#       isaac_ros_visual_slam_orb_realsense_d456.launch.py mode:=stereo-imu
+#       isaac_ros_visual_slam_orb_realsense_d456.launch.py mode:=stereo-inertial
 #
 #   ros2 launch isaac_ros_visual_slam_orb \
 #       isaac_ros_visual_slam_orb_realsense_d456.launch.py mode:=mono
 #
 #   ros2 launch isaac_ros_visual_slam_orb \
-#       isaac_ros_visual_slam_orb_realsense_d456.launch.py mode:=rgbd
+#       isaac_ros_visual_slam_orb_realsense_d456.launch.py mode:=rgb-d
 
 import os
 from ament_index_python.packages import get_package_share_directory
@@ -37,7 +39,15 @@ def _launch_setup(context, *args, **kwargs):
     """Resolve launch arguments and build the appropriate node graph."""
 
     pkg_share = get_package_share_directory('isaac_ros_visual_slam_orb')
-    mode = LaunchConfiguration('mode').perform(context)
+    mode_raw = LaunchConfiguration('mode').perform(context)
+
+    # ── Normalise mode aliases ────────────────────────────────────────────
+    _ALIASES = {
+        'mono-inertial': 'mono-imu',
+        'stereo-inertial': 'stereo-imu',
+        'rgb-d': 'rgbd',
+    }
+    mode = _ALIASES.get(mode_raw, mode_raw)
 
     # ── Derive flags from mode ────────────────────────────────────────────
     use_stereo = mode in ('stereo', 'stereo-imu')
@@ -226,8 +236,12 @@ def generate_launch_description():
         # ── Mode selection ────────────────────────────────────────────────
         DeclareLaunchArgument('mode',
             default_value='stereo',
-            choices=['mono', 'mono-imu', 'stereo', 'stereo-imu', 'rgbd', 'rgbd-imu'],
-            description='Sensor mode: mono, mono-imu, stereo, stereo-imu, rgbd, rgbd-imu'),
+            choices=[
+                'mono', 'mono-inertial', 'mono-imu',
+                'stereo', 'stereo-inertial', 'stereo-imu',
+                'rgb-d', 'rgbd', 'rgbd-imu',
+            ],
+            description='Sensor mode: mono, mono-inertial, stereo, stereo-inertial, rgb-d'),
 
         # ── RViz2 ─────────────────────────────────────────────────────────
         DeclareLaunchArgument('run_rviz', default_value='true',
