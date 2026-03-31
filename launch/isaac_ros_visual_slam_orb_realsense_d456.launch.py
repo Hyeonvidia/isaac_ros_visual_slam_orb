@@ -67,14 +67,16 @@ def _launch_setup(context, *args, **kwargs):
     num_cameras = 2 if use_stereo else 1
 
     # ── RealSense D456 camera node ────────────────────────────────────────
-    # D456 native resolution 848x480 is optimal for automotive use (wider FOV,
-    # higher feature count than 640x480, lower load than 1280x720).
+    # Stereo uses 640x480 (infra1+infra2 doubles USB bandwidth; 848x480
+    # causes Motion Module force-pause on some USB hosts).
+    # RGBD/mono can use 848x480 (single stream).
+    infra_profile = '640x480x30' if use_stereo else '848x480x30'
     rs_params = {
         'enable_infra1':  True,
         'enable_infra2':  use_stereo,
         'enable_color':   use_rgbd,
         'enable_depth':   use_rgbd,
-        'depth_module.infra_profile': '848x480x30',
+        'depth_module.infra_profile': infra_profile,
         'enable_gyro':    use_imu,
         'enable_accel':   use_imu,
         'enable_sync':    True,
