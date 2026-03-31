@@ -263,10 +263,10 @@ def generate_launch_description():
             default_value='/opt/orb_slam3/Vocabulary/ORBvoc.txt'),
 
         # ── D456 IMU noise (BMI055) — only used in *-imu modes ────────────
-        DeclareLaunchArgument('gyro_noise_density',   default_value='0.000244'),
-        DeclareLaunchArgument('gyro_random_walk',     default_value='0.000019393'),
-        DeclareLaunchArgument('accel_noise_density',  default_value='0.001862'),
-        DeclareLaunchArgument('accel_random_walk',    default_value='0.003'),
+        DeclareLaunchArgument('gyro_noise_density',   default_value='0.001'),
+        DeclareLaunchArgument('gyro_random_walk',     default_value='0.000001'),
+        DeclareLaunchArgument('accel_noise_density',  default_value='0.01'),
+        DeclareLaunchArgument('accel_random_walk',    default_value='0.0001'),
         DeclareLaunchArgument('calibration_frequency', default_value='200.0'),
 
         # ── Build node graph based on mode ────────────────────────────────
