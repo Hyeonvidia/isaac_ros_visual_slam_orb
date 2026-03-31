@@ -138,6 +138,17 @@ if [[ "${PLATFORM}" == "aarch64" ]] && command -v nvpmodel &>/dev/null; then
     sudo jetson_clocks 2>/dev/null || true
 fi
 
+# ─── Ctrl+C handler: stop and remove container ────────────────────────────
+function cleanup_container {
+    echo ""
+    print_warning "Stopping container: ${CONTAINER_NAME}"
+    docker stop "${CONTAINER_NAME}" 2>/dev/null || true
+    docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
+    print_info "Container stopped."
+    exit 0
+}
+trap cleanup_container SIGINT SIGTERM
+
 # ─── Run container ──────────────────────────────────────────────────────────
 print_info "============================================================"
 print_info "  ORB-SLAM3 Deploy Container"
@@ -145,6 +156,7 @@ print_info "============================================================"
 print_info "  Image     : ${DEPLOY_IMAGE_NAME}"
 print_info "  Container : ${CONTAINER_NAME}"
 print_info "  Mode      : ${MODE}"
+print_info "  Ctrl+C to stop and remove container"
 
 if [[ ${INTERACTIVE_SHELL} -eq 1 ]]; then
     print_info "  Shell     : interactive bash"
@@ -170,5 +182,6 @@ else
         ${DOCKER_ARGS[@]} \
         --name "${CONTAINER_NAME}" \
         "${DEPLOY_IMAGE_NAME}" \
-        bash -c "${FULL_LAUNCH_CMD}"
+        bash -c "${FULL_LAUNCH_CMD}" &
+    wait $!
 fi
