@@ -158,6 +158,12 @@ print_info "  Container : ${CONTAINER_NAME}"
 print_info "  Mode      : ${MODE}"
 print_info "  Ctrl+C to stop and remove container"
 
+# Use -it only when a TTY is available
+DOCKER_TTY_FLAG="-i"
+if [ -t 0 ]; then
+    DOCKER_TTY_FLAG="-it"
+fi
+
 if [[ ${INTERACTIVE_SHELL} -eq 1 ]]; then
     print_info "  Shell     : interactive bash"
     print_info "============================================================"
@@ -174,7 +180,7 @@ else
     FULL_LAUNCH_CMD="ros2 launch ${LAUNCH_PACKAGE} ${LAUNCH_FILE} mode:=${MODE} ${LAUNCH_ARGS[*]}"
     print_info "  Launch    : ${FULL_LAUNCH_CMD}"
     print_info "============================================================"
-    docker run -it --rm \
+    docker run ${DOCKER_TTY_FLAG} --rm \
         --privileged \
         --network host \
         --ipc=host \
