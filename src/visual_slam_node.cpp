@@ -156,6 +156,10 @@ VisualSlamNode::VisualSlamNode(const rclcpp::NodeOptions & options)
     "visual_slam/vis/landmarks_cloud", 5);
   pose_graph_pub_   = create_publisher<geometry_msgs::msg::PoseArray>(
     "visual_slam/vis/pose_graph_nodes", 5);
+  slam_odometry_pub_ = create_publisher<nav_msgs::msg::Odometry>(
+    "visual_slam/vis/slam_odometry", 5);
+  pose_graph_edges_pub_ = create_publisher<visualization_msgs::msg::Marker>(
+    "visual_slam/vis/pose_graph_edges", 5);
   feature_image_pub_ = create_publisher<sensor_msgs::msg::Image>(
     "visual_slam/vis/feature_image", 5);
 
@@ -614,6 +618,27 @@ void VisualSlamNode::PublishOdometry(
     }
     prev_pose_ = {ts_ns, pose};
     odometry_pub_->publish(odom);
+
+    // SLAM Odometry (same as VO for ORB-SLAM3 since it always runs loop closure)
+    nav_msgs::msg::Odometry slam_odom = odom;
+    slam_odom.header.frame_id = map_frame_;
+    slam_odometry_pub_->publish(slam_odom);
+  }
+
+  // SLAM path
+  {
+    geometry_msgs::msg::PoseStamped ps;
+    ps.header.stamp    = stamp;
+    ps.header.frame_id = map_frame_;
+    ps.pose = conversion::IsometryToRosPose(pose);
+    slam_path_.push_back(ps);
+    if (slam_path_.size() > path_max_size_) {
+      slam_path_.erase(slam_path_.begin());
+    }
+    nav_msgs::msg::Path path_msg;
+    path_msg.header = ps.header;
+    path_msg.poses  = slam_path_;
+    slam_path_pub_->publish(path_msg);
   }
 }
 

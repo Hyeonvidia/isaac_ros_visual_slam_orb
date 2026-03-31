@@ -147,6 +147,8 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr               observations_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr               landmarks_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr               pose_graph_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr                    slam_odometry_pub_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr            pose_graph_edges_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr                    feature_image_pub_;
 
   // ── Services ────────────────────────────────────────────────────────────
