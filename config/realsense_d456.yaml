@@ -47,13 +47,15 @@ Camera.fps: 30
 Camera.RGB: 0
 
 #--------------------------------------------------------------------------------------------
-# IMU — D456 built-in IMU (BMI055)
-# Values from Intel RealSense D456 datasheet
+# IMU — D456 built-in IMU (BMI085)
+# Values from ORB-SLAM3 official RealSense Stereo-Inertial config.
+# ~10x datasheet noise to aid initialization convergence.
+# NOTE: These are overridden at runtime by launch parameters.
 #--------------------------------------------------------------------------------------------
-IMU.NoiseGyro:  0.000244   # rad / (s * sqrt(Hz))
-IMU.NoiseAcc:   0.001862   # m / (s^2 * sqrt(Hz))
-IMU.GyroWalk:   0.000019393
-IMU.AccWalk:    0.003
+IMU.NoiseGyro:  0.001      # ~4x datasheet (2.44e-4)
+IMU.NoiseAcc:   0.01       # ~5x datasheet (1.86e-3)
+IMU.GyroWalk:   0.000001
+IMU.AccWalk:    0.0001
 IMU.Frequency:  200.0
 
 # T_imu_cam: transform from Camera1 optical frame to IMU frame

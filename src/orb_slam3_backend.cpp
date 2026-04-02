@@ -280,6 +280,15 @@ bool OrbSlam3Backend::WriteSettingsYaml(
   f << "Viewer.imageViewScale: 1.0\n";
 
   f.close();
+
+  // Dump generated YAML for debugging
+  std::ifstream dump(generated_settings_path_);
+  if (dump.is_open()) {
+    std::cerr << "\n=== Generated ORB-SLAM3 YAML (" << generated_settings_path_ << ") ===\n"
+              << dump.rdbuf()
+              << "\n=== End YAML ===\n" << std::endl;
+  }
+
   return true;
 }
 
@@ -427,18 +436,24 @@ TrackingResult OrbSlam3Backend::Track(
       const bool stereo = processed.size() >= 2;
     const bool has_imu = !imu_points.empty();
 
-    if (stereo && has_imu) {
-      T_cw = system_->TrackStereo(
-        processed[0], processed[1], timestamp_s,
-        imu_points);
-    } else if (stereo) {
-      T_cw = system_->TrackStereo(
-        processed[0], processed[1], timestamp_s);
-    } else if (!processed.empty() && has_imu) {
-      T_cw = system_->TrackMonocular(
-        processed[0], timestamp_s, imu_points);
-    } else if (!processed.empty()) {
-      T_cw = system_->TrackMonocular(processed[0], timestamp_s);
+    try {
+      if (stereo && has_imu) {
+        T_cw = system_->TrackStereo(
+          processed[0], processed[1], timestamp_s,
+          imu_points);
+      } else if (stereo) {
+        T_cw = system_->TrackStereo(
+          processed[0], processed[1], timestamp_s);
+      } else if (!processed.empty() && has_imu) {
+        T_cw = system_->TrackMonocular(
+          processed[0], timestamp_s, imu_points);
+      } else if (!processed.empty()) {
+        T_cw = system_->TrackMonocular(processed[0], timestamp_s);
+      }
+    } catch (const std::exception & e) {
+      std::cerr << "[ORB-SLAM3] Track exception: " << e.what() << std::endl;
+      result.state = TrackingState::kFailed;
+      return result;
     }
   }
 

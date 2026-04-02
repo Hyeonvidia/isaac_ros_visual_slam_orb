@@ -83,7 +83,7 @@ def _launch_setup(context, *args, **kwargs):
         'emitter_enabled': 0,
     }
     if use_imu:
-        rs_params['gyro_fps']          = 400
+        rs_params['gyro_fps']          = 200
         rs_params['accel_fps']         = 200
         rs_params['unite_imu_method']  = 2   # linear_interpolation
     if use_rgbd:
@@ -133,6 +133,7 @@ def _launch_setup(context, *args, **kwargs):
         # Output
         'publish_map_to_odom_tf':   True,
         'publish_odom_to_base_tf':  True,
+        'enable_viewer':            LaunchConfiguration('enable_viewer'),
         'enable_slam_visualization': LaunchConfiguration('enable_slam_visualization'),
         'enable_observations_view': LaunchConfiguration('enable_observations_view'),
         'enable_landmarks_view':    LaunchConfiguration('enable_landmarks_view'),
@@ -248,8 +249,8 @@ def generate_launch_description():
             description='Sensor mode: mono, mono-inertial, stereo, stereo-inertial, rgb-d'),
 
         # ── RViz2 ─────────────────────────────────────────────────────────
-        DeclareLaunchArgument('run_rviz', default_value='true',
-            description='Launch RViz2 with sensor-mode-appropriate config'),
+        DeclareLaunchArgument('run_rviz', default_value='false',
+            description='Launch RViz2 (default off; Pangolin/OpenCV used instead)'),
 
         # ── Common arguments ──────────────────────────────────────────────
         DeclareLaunchArgument('rectified_images',       default_value='true'),
@@ -257,6 +258,8 @@ def generate_launch_description():
             description='Gaussian blur to reduce vibration noise (recommended for vehicles)'),
         DeclareLaunchArgument('image_jitter_threshold_ms', default_value='40.0',
             description='Sync tolerance: 40ms for 30fps high-speed, 100ms for 15fps splitter'),
+        DeclareLaunchArgument('enable_viewer',              default_value='true',
+            description='Pangolin 3D map viewer window'),
         DeclareLaunchArgument('enable_slam_visualization', default_value='true'),
         DeclareLaunchArgument('enable_observations_view',  default_value='true'),
         DeclareLaunchArgument('enable_landmarks_view',     default_value='true'),
@@ -270,13 +273,15 @@ def generate_launch_description():
         DeclareLaunchArgument('orb_vocab_path',
             default_value='/opt/orb_slam3/Vocabulary/ORBvoc.txt'),
 
-        # ── D456 IMU noise (BMI055) — only used in *-imu modes ────────────
+        # ── D456 IMU noise (BMI085) — only used in *-imu modes ─────────
+        # Values from ORB-SLAM3 official RealSense D435i stereo-inertial config.
+        # Intentionally ~10x datasheet to aid initialization convergence.
         DeclareLaunchArgument('gyro_noise_density',   default_value='0.001'),
         DeclareLaunchArgument('gyro_random_walk',     default_value='0.000001'),
         DeclareLaunchArgument('accel_noise_density',  default_value='0.01'),
         DeclareLaunchArgument('accel_random_walk',    default_value='0.0001'),
-        DeclareLaunchArgument('calibration_frequency', default_value='400.0',
-            description='Match gyro_fps=400Hz for automotive IMU'),
+        DeclareLaunchArgument('calibration_frequency', default_value='200.0',
+            description='Match unified IMU output rate (gyro+accel both 200Hz)'),
 
         # ── Build node graph based on mode ────────────────────────────────
         OpaqueFunction(function=_launch_setup),

@@ -5,7 +5,9 @@
 
 #include <algorithm>
 #include <chrono>
+#include <csignal>
 #include <cstring>
+#include <execinfo.h>
 
 #include <cv_bridge/cv_bridge.h>
 #include <Eigen/Geometry>
@@ -14,6 +16,17 @@
 
 #include "isaac_ros_visual_slam_orb/orb_slam3_backend.hpp"
 #include "isaac_ros_visual_slam_orb/impl/ros_orb_conversion.hpp"
+
+namespace {
+void segfault_handler(int sig) {
+  fprintf(stderr, "\n=== SIGSEGV caught (signal %d) ===\n", sig);
+  void * frames[64];
+  int n = backtrace(frames, 64);
+  backtrace_symbols_fd(frames, n, STDERR_FILENO);
+  fprintf(stderr, "=== End backtrace ===\n");
+  std::_Exit(128 + sig);
+}
+}  // namespace
 
 namespace isaac_ros::visual_slam_orb
 {
@@ -69,6 +82,9 @@ VisualSlamNode::VisualSlamNode(const rclcpp::NodeOptions & options)
   calibration_frequency_(declare_parameter<double>("calibration_frequency", 200.0)),
   sync_()  // initialised below after sensor_mode is known
 {
+  // Install SIGSEGV handler for backtrace
+  std::signal(SIGSEGV, segfault_handler);
+
   // ── Interpret sensor_mode parameter ──────────────────────────────────
   if (sensor_mode_str_ == "mono")           sensor_mode_ = SensorMode::kMono;
   else if (sensor_mode_str_ == "mono-imu")  sensor_mode_ = SensorMode::kMonoImu;
@@ -280,8 +296,14 @@ void VisualSlamNode::OnImu(const sensor_msgs::msg::Imu::ConstSharedPtr & msg)
   std::lock_guard<std::mutex> lock(imu_mutex_);
   pending_imu_.push_back(msg);
   // Keep buffer bounded
-  while (pending_imu_.size() > static_cast<size_t>(imu_buffer_size_)) {
-    pending_imu_.erase(pending_imu_.begin());
+  if (pending_imu_.size() > static_cast<size_t>(imu_buffer_size_)) {
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+      "IMU buffer overflow (%zu > %d). Dropping oldest samples — "
+      "images may be arriving too slowly.",
+      pending_imu_.size(), imu_buffer_size_);
+    while (pending_imu_.size() > static_cast<size_t>(imu_buffer_size_)) {
+      pending_imu_.erase(pending_imu_.begin());
+    }
   }
 }
 
@@ -364,10 +386,16 @@ void VisualSlamNode::TryInitialize()
     if (!imu_frame_.empty()) {
       try {
         imu.T_body_imu = LookupTransform(base_frame_, imu_frame_);
+        RCLCPP_INFO(get_logger(),
+          "IMU extrinsic TF OK: %s → %s", base_frame_.c_str(), imu_frame_.c_str());
       } catch (const std::exception & e) {
-        RCLCPP_WARN(get_logger(),
-          "TF lookup base→imu failed (%s). Using identity.", e.what());
+        RCLCPP_ERROR(get_logger(),
+          "TF lookup %s → %s failed: %s. IMU fusion will be UNSTABLE with identity transform!",
+          base_frame_.c_str(), imu_frame_.c_str(), e.what());
       }
+    } else {
+      RCLCPP_ERROR(get_logger(),
+        "imu_frame is empty but enable_imu_fusion=true. IMU fusion will fail!");
     }
     imu_calib = imu;
   }
@@ -464,6 +492,13 @@ void VisualSlamNode::OnSyncedImages(
   }
 
   // ── Track ─────────────────────────────────────────────────────────────
+  // Skip frame if IMU mode but no IMU data accumulated yet (avoids NaN in pre-integration)
+  if (enable_imu_fusion_ && imus.empty()) {
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+      "IMU mode but no IMU data for this frame — skipping.");
+    return;
+  }
+
   TrackingResult result;
   if (rgbd_mode_) {
     result = slam_backend_->TrackRGBD(timestamp_ns, cv_images[0], depth_mat, imus);
